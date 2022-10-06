@@ -11,7 +11,8 @@ class Philosopher(id: Int, leftFork: String, rightFork:String) : Runnable{
 
     private fun eating(){
         println(State.EATING.toString())
-        Thread.sleep((Math.random() * 2000).toLong())
+        val eating = (Math.random() * 2000).toLong()
+        Thread.sleep(eating)
     }
 
     private fun thinking(){
@@ -21,16 +22,19 @@ class Philosopher(id: Int, leftFork: String, rightFork:String) : Runnable{
 
     override fun run() {
         while (true){
-            thinking()
+            println("${Thread.currentThread().name} is trying to pick up left fork")
             synchronized(leftFork){
+                println("${Thread.currentThread().name} is trying to pick up left fork")
                 println(State.TAKING_LEFT_FORK.toString() + ". Fork #$leftFork")
+                Thread.sleep(100)
                 synchronized(rightFork){
-                    println(State.TAKING_RIGHT_FORK.toString() + ". Fork #$rightFork")
+                    println(State.TAKING_RIGHT_FORK.toString() + ". solution2.Fork #$rightFork")
                     eating()
-                    println(State.RELEASING_RIGHT_FORK.toString() + ". Fork #$rightFork")
+                    println(State.RELEASING_RIGHT_FORK.toString() + ". solution2.Fork #$rightFork")
                 }
-                println(State.RELEASING_LEFT_FORK.toString() + ". Fork #$leftFork")
+            println(State.RELEASING_LEFT_FORK.toString() + ". solution2.Fork #$leftFork")
             }
+            thinking()
         }
     }
 }
@@ -75,7 +79,7 @@ fun main(){
     val forks = Array(forksAmount){"$it"}
     for (i in 0 until phAmount) {
         if (i == 4){
-            philosophers.add(Thread(Philosopher(i, forks[(i + 1) % 5], forks[i])))
+            philosophers.add(Thread(Philosopher(i, forks[i], forks[0])))
             break
         }
         philosophers.add(Thread(Philosopher(i, forks[i], forks[(i + 1) % 5])))
