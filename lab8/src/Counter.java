@@ -22,20 +22,23 @@ public class Counter implements Runnable{
             result += Math.pow((-1.0), iterator) / (2 * iterator + 1);
             iterator+=threadCount;
             i++;
-            if (i % 100 == 0){
+            if (i % 10 == 0){
                 try {
+                    System.out.println(Thread.currentThread().getName() + " " + i);
                     cyclicBarrier.await();
                 } catch (InterruptedException | BrokenBarrierException e) {
-                    throw new RuntimeException(e);
+                    e.printStackTrace();
                 }
             }
-            try {
-                Thread.sleep(1);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
         }
-        System.out.println(Thread.currentThread().getName() + " " + i);
+        /*try {
+            Thread.sleep(0);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        } */
+
+        System.out.println("ENDING: " + Thread.currentThread().getName() + " " + i);
+
     }
 
     public void stop(){
@@ -43,6 +46,7 @@ public class Counter implements Runnable{
     }
 
     public double getResult() {
+        System.out.println(i);
         return result;
     }
 }

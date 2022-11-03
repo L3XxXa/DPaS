@@ -13,26 +13,22 @@ public class Main{
             threadList.add(new Thread(counters.get(i)));
         }
         threadList.forEach(Thread::start);
-        Runtime.getRuntime().addShutdownHook(new Thread(){
-            @Override
-            public void run() {
-                System.out.println("Going to stop the counters");
-                for (int i = 0; i < threadAmount; i++) {
-                    counters.get(i).stop();
-                }
-                try {
-                    Thread.sleep(2000);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-                double result = 0;
-                for (int i = 0; i < threadAmount; i++) {
-
-                    result += counters.get(i).getResult();
-                }
-                System.out.println(result * 4);
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            System.out.println("Going to stop the counters");
+            for (int i = threadAmount - 1; i >= 0; i--) {
+                counters.get(i).stop();
             }
-        });
+            try {
+                Thread.sleep(2000);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+            double result = 0;
+            for (int i = 0; i < threadAmount; i++) {
+                result += counters.get(i).getResult();
+            }
+            System.out.println(result * 4);
+        }));
 
     }
 
