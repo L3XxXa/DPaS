@@ -51,25 +51,6 @@
         (send (consumer :worker) notify-msg ware (state :storage) amount))))
   state)
 
-(defn notify-msg
-  [state ware storage-atom amount]
-  (let [bill (state :bill),
-        buffer (state :buffer),
-        needed  (min (- (bill ware) (buffer ware)) amount),
-        internal-buffer
-        (if (>= (bill ware) (buffer ware))
-          (try
-            (do
-              (swap! storage-atom #(- % needed))
-              (update buffer ware #(+ % needed)))
-            (catch IllegalStateException _ buffer))
-          buffer)]
-    (if (= bill internal-buffer)
-      (do
-        (Thread/sleep (state :duration))
-        (send ((state :target-storage) :worker) supply-msg (state :amount))
-        (assoc state :buffer (reduce-kv (fn [acc k _] (assoc acc k 0)) {} bill)))
-      (assoc state :buffer internal-buffer))))
 (def safe-storage (storage "Safe" 1))
 (def safe-factory (factory 1 3000 safe-storage "Metal" 3))
 (def cuckoo-clock-storage (storage "Cuckoo-clock" 1))
@@ -94,6 +75,26 @@
 
 (agent-error (gears-factory :worker))
 (agent-error (metal-storage :worker))
+
+(defn notify-msg
+  [state ware storage-atom amount]
+  (let [bill (state :bill),
+        buffer (state :buffer),
+        needed  (min (- (bill ware) (buffer ware)) amount),
+        internal-buffer
+        (if (>= (bill ware) (buffer ware))
+          (try
+            (do
+              (swap! storage-atom #(- % needed))
+              (update buffer ware #(+ % needed)))
+            (catch IllegalStateException _ buffer))
+          buffer)]
+    (if (= bill internal-buffer)
+      (do
+        (Thread/sleep (state :duration))
+        (send ((state :target-storage) :worker) supply-msg (state :amount))
+        (assoc state :buffer (reduce-kv (fn [acc k _] (assoc acc k 0)) {} bill)))
+      (assoc state :buffer internal-buffer))))
 
 (defn run []
   (do
