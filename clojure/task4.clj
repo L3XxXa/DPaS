@@ -53,11 +53,12 @@
 
 (defn notify-msg
   [state ware storage-atom amount]
+  (locking storage-atom
   (let [bill (state :bill),
         buffer (state :buffer),
         needed  (min (- (bill ware) (buffer ware)) amount),
         internal-buffer
-          (if (and (>= (bill ware) (buffer ware)) (> amount needed))
+        (if (and (>= (bill ware) (buffer ware)) (> amount needed))
               (do
                 (swap! storage-atom #(- % needed))
                 (update buffer ware #(+ % needed)))
@@ -67,7 +68,7 @@
             (Thread/sleep (state :duration))
             (send ((state :target-storage) :worker) supply-msg (state :amount))
             (assoc state :buffer (reduce-kv (fn [acc k _] (assoc acc k 0)) {} bill)))
-          (assoc state :buffer internal-buffer))))
+          (assoc state :buffer internal-buffer)))))
 
 (def safe-storage (storage "Safe" 1))
 (def safe-factory (factory 1 3000 safe-storage "Metal" 3))
