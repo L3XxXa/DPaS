@@ -5,6 +5,8 @@ import io.ktor.server.routing.*
 import io.ktor.server.response.*
 import io.ktor.server.application.*
 import io.ktor.server.request.*
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.MissingFieldException
 import malov.nsu.ru.serializators.BookRequestSerializer
 import malov.nsu.ru.serializators.CheckinRequestSerializer
 
@@ -62,13 +64,22 @@ fun Application.configureRouting() {
         }
 
         put("/api/v1/book"){
-            val request = call.receive<BookRequestSerializer>()
-            call.respond(HttpStatusCode.OK, request)
+            try {
+                val request = call.receive<BookRequestSerializer>()
+                call.respond(HttpStatusCode.OK, request)
+            } catch (e: Exception){
+                call.respond(HttpStatusCode.BadRequest, "${e.message}")
+            }
+
         }
 
         put("/api/v1/checkin"){
-            val request = call.receive<CheckinRequestSerializer>()
-            call.respond(HttpStatusCode.OK, request)
+            try {
+                val request = call.receive<CheckinRequestSerializer>()
+                call.respond(HttpStatusCode.OK, request)
+            } catch (e: Exception){
+                call.respond(HttpStatusCode.BadRequest, "${e.message}")
+            }
         }
     }
 }
