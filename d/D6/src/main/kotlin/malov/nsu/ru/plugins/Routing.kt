@@ -12,6 +12,7 @@ import malov.nsu.ru.repository.ApplicationDAOImpl
 import malov.nsu.ru.serializators.BookRequestSerializer
 import malov.nsu.ru.serializators.CheckinRequestSerializer
 import malov.nsu.ru.serializators.airports.AirportResponseSerializer
+import malov.nsu.ru.serializators.cities.CitiesResponseSerializer
 
 fun Application.configureRouting() {
     val dao = ApplicationDAOImpl()
@@ -34,8 +35,15 @@ fun Application.configureRouting() {
         }
 
         get("/api/v1/cities"){
-            call.respondText("List of all cities")
-
+            val cities = dao.getCities()
+            if (cities.isEmpty()){
+                call.respond(HttpStatusCode.OK, "No cities found")
+            }
+            val citiesResponse = ArrayList<CitiesResponseSerializer>()
+            cities.forEach {
+                citiesResponse.add(CitiesResponseSerializer(it.city))
+            }
+            call.respond(HttpStatusCode.OK, citiesResponse)
         }
 
         get("/api/v1/airportsCity"){
