@@ -5,14 +5,12 @@ import io.ktor.server.routing.*
 import io.ktor.server.response.*
 import io.ktor.server.application.*
 import io.ktor.server.request.*
-import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.MissingFieldException
-import malov.nsu.ru.repository.ApplicationDAO
 import malov.nsu.ru.repository.ApplicationDAOImpl
 import malov.nsu.ru.serializators.BookRequestSerializer
 import malov.nsu.ru.serializators.CheckinRequestSerializer
 import malov.nsu.ru.serializators.airports.AirportResponseSerializer
 import malov.nsu.ru.serializators.cities.CitiesResponseSerializer
+import malov.nsu.ru.serializators.flights.ScheduledFlightsResponseSerializer
 
 fun Application.configureRouting() {
     val dao = ApplicationDAOImpl()
@@ -64,15 +62,30 @@ fun Application.configureRouting() {
             if (call.request.queryParameters["airport"] == null || call.request.queryParameters["airport"] == ""){
                 call.respond(HttpStatusCode.BadRequest, "You didn't specified airport")
             }
-            call.respondText(call.request.queryParameters["airport"]!!)
+            val flights = dao.getAirportInboundSchedule(call.request.queryParameters["airport"]!!.uppercase())
+            if (flights.isEmpty()){
+                call.respond(HttpStatusCode.BadRequest, "No inbound flights for airport ${call.request.queryParameters["airport"]}")
+            }
+            val flightsResponse = ArrayList<ScheduledFlightsResponseSerializer>()
+            flights.forEach {
+                flightsResponse.add(ScheduledFlightsResponseSerializer(it.from, it.to, it.flight, it.days))
+            }
+            call.respond(HttpStatusCode.OK, flightsResponse)
         }
 
         get("/api/v1/airportOutboundSchedule"){
             if (call.request.queryParameters["airport"] == null || call.request.queryParameters["airport"] == ""){
                 call.respond(HttpStatusCode.BadRequest, "You didn't specified airport")
             }
-            call.respondText(call.request.queryParameters["airport"]!!)
-        }
+            val flights = dao.getAirportOutboundSchedule(call.request.queryParameters["airport"]!!.uppercase())
+            if (flights.isEmpty()){
+                call.respond(HttpStatusCode.BadRequest, "No inbound flights for airport ${call.request.queryParameters["airport"]}")
+            }
+            val flightsResponse = ArrayList<ScheduledFlightsResponseSerializer>()
+            flights.forEach {
+                flightsResponse.add(ScheduledFlightsResponseSerializer(it.from, it.to, it.flight, it.days))
+            }
+            call.respond(HttpStatusCode.OK, flightsResponse)        }
 
         get("/api/v1/routes") {
             if (call.request.queryParameters["origin"] == null || call.request.queryParameters["origin"] == "" ||

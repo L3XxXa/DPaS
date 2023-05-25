@@ -1,8 +1,8 @@
 package malov.nsu.ru.repository
 
-import io.ktor.server.application.*
 import malov.nsu.ru.entity.AirportEntity
 import malov.nsu.ru.entity.CityEntity
+import malov.nsu.ru.entity.FlightEntity
 import java.sql.Connection
 import java.sql.DriverManager
 
@@ -12,6 +12,8 @@ class ApplicationDAOImpl : ApplicationDAO {
     private val getAirportsQuery = "select * from airports;"
     private val getAirportsCityQuery = "select * from airports where city ="
     private val getCitiesQuery = "select city from airports;"
+    private val getAirportOutboundScheduleQuery = "select * from routes where departure_airport ="
+    private val getAirportInboundScheduleQuery = "select * from routes where arrival_airport ="
     override fun init() {
         Class.forName("org.postgresql.Driver")
         val url = "jdbc:postgresql://localhost:5432/demo"
@@ -56,5 +58,33 @@ class ApplicationDAOImpl : ApplicationDAO {
             cities.add(CityEntity(city = queryRes.getString("city")))
         }
         return cities
+    }
+
+    override fun getAirportOutboundSchedule(airportCode: String): MutableSet<FlightEntity> {
+        val flights: MutableSet<FlightEntity> = mutableSetOf()
+        val statement = connection.createStatement()
+        val queryRes = statement.executeQuery("$getAirportOutboundScheduleQuery '$airportCode';")
+        while (queryRes.next()){
+            flights.add(FlightEntity(
+                from = queryRes.getString("departure_airport"),
+                to = queryRes.getString("arrival_airport"),
+                flight = queryRes.getString("flight_no"),
+                days = queryRes.getArray("days_of_week").toString()))
+        }
+        return flights
+    }
+
+    override fun getAirportInboundSchedule(airportCode: String): MutableSet<FlightEntity> {
+        val flights: MutableSet<FlightEntity> = mutableSetOf()
+        val statement = connection.createStatement()
+        val queryRes = statement.executeQuery("$getAirportInboundScheduleQuery '$airportCode';")
+        while (queryRes.next()){
+            flights.add(FlightEntity(
+                from = queryRes.getString("departure_airport"),
+                to = queryRes.getString("arrival_airport"),
+                flight = queryRes.getString("flight_no"),
+                days = queryRes.getArray("days_of_week").toString()))
+        }
+        return flights
     }
 }
