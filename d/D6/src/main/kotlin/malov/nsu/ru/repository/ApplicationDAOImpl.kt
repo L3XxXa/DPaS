@@ -9,6 +9,7 @@ import java.sql.DriverManager
 class ApplicationDAOImpl : ApplicationDAO {
     private lateinit var connection: Connection
     private val getAirportsQuery = "select * from airports;"
+    private val getAirportsCityQuery = "select * from airports where city ="
     override fun init() {
         Class.forName("org.postgresql.Driver")
         val url = "jdbc:postgresql://localhost:5432/demo"
@@ -29,5 +30,23 @@ class ApplicationDAOImpl : ApplicationDAO {
                 coordinates = queryRes.getString("coordinates")))
         }
         return airports
+    }
+
+    override fun getAirportsCity(city: String): MutableSet<AirportEntity> {
+        val airports: MutableSet<AirportEntity> = mutableSetOf()
+        val statement = connection.createStatement()
+        val queryRes = statement.executeQuery("$getAirportsCityQuery '$city';")
+        while (queryRes.next()){
+            airports.add(AirportEntity(code = queryRes.getString("airport_code"),
+                airportCity = queryRes.getString("city"),
+                airportsName = queryRes.getString("airport_name"),
+                timeZone = queryRes.getString("timezone"),
+                coordinates = queryRes.getString("coordinates")))
+        }
+        return airports
+    }
+
+    override fun getCities() {
+        TODO("Not yet implemented")
     }
 }

@@ -35,14 +35,22 @@ fun Application.configureRouting() {
 
         get("/api/v1/cities"){
             call.respondText("List of all cities")
+
         }
 
         get("/api/v1/airportsCity"){
             if (call.request.queryParameters["city"] == null || call.request.queryParameters["city"] == ""){
                 call.respond(HttpStatusCode.BadRequest, "You didn't specified city to find")
             }
-            call.respondText(call.request.queryParameters["city"]!!)
-        }
+            val airports = dao.getAirportsCity(call.request.queryParameters["city"]!!)
+            if (airports.isEmpty()){
+                call.respond(HttpStatusCode.BadRequest, "No airports found for city ${call.request.queryParameters["city"]}")
+            }
+            val airportsResponse = ArrayList<AirportResponseSerializer>()
+            airports.forEach {
+                airportsResponse.add(AirportResponseSerializer(it.code, it.airportCity, it.airportsName, it.timeZone, it.coordinates))
+            }
+            call.respond(HttpStatusCode.OK, airportsResponse)        }
 
         get("/api/v1/airportInboundSchedule"){
             if (call.request.queryParameters["airport"] == null || call.request.queryParameters["airport"] == ""){
