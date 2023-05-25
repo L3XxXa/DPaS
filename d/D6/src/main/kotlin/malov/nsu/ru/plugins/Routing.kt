@@ -7,17 +7,30 @@ import io.ktor.server.application.*
 import io.ktor.server.request.*
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.MissingFieldException
+import malov.nsu.ru.repository.ApplicationDAO
+import malov.nsu.ru.repository.ApplicationDAOImpl
 import malov.nsu.ru.serializators.BookRequestSerializer
 import malov.nsu.ru.serializators.CheckinRequestSerializer
+import malov.nsu.ru.serializators.airports.AirportResponseSerializer
 
 fun Application.configureRouting() {
+    val dao = ApplicationDAOImpl()
+    dao.init()
     routing {
         get("/") {
-            call.respondText("Hello World!")
+            call.respondText(call.request.queryParameters["echo"]!!)
         }
 
         get("/api/v1/airports"){
-            call.respondText("List of all airports")
+            val airports = dao.getAirports()
+            if (airports.isEmpty()){
+                call.respond(HttpStatusCode.BadRequest, "No airports found")
+            }
+            val airportsResponse = ArrayList<AirportResponseSerializer>()
+            airports.forEach {
+                airportsResponse.add(AirportResponseSerializer(it.code, it.airportCity, it.airportsName, it.timeZone, it.coordinates))
+            }
+            call.respond(HttpStatusCode.OK, airportsResponse)
         }
 
         get("/api/v1/cities"){
