@@ -1,3 +1,3 @@
 package malov.nsu.ru.entity
 
-data class RouteEntity(val connections: Int, val departureAirports: ArrayList<String>, val arrivalAirports: ArrayList<String>, val flights: ArrayList<String>, val price: Int)
+data class RouteEntity(val route: String, val departureAirport: String, val arrivalAirport: String, val scheduledDeparture: String, val flightNo: String, val count: Int, val price: Int)

@@ -17,6 +17,8 @@ import malov.nsu.ru.serializators.airports.AirportResponseSerializer
 import malov.nsu.ru.serializators.book.BookResponseSerializer
 import malov.nsu.ru.serializators.cities.CitiesResponseSerializer
 import malov.nsu.ru.serializators.flights.ScheduledFlightsResponseSerializer
+import java.util.*
+import kotlin.collections.ArrayList
 
 fun Application.configureRouting() {
     val dao = ApplicationDAOImpl()
@@ -100,39 +102,33 @@ fun Application.configureRouting() {
             if (call.request.queryParameters["origin"] == null || call.request.queryParameters["origin"] == "" ||
                 call.request.queryParameters["destination"] == null || call.request.queryParameters["destination"] == "" ||
                 call.request.queryParameters["departure_date"] == null || call.request.queryParameters["departure_date"] == "" ||
+                call.request.queryParameters["max_arrival_date"] == null || call.request.queryParameters["max_arrival_date"] == "" ||
                 call.request.queryParameters["booking_class"] == null || call.request.queryParameters["booking_class"] == "" ||
                 call.request.queryParameters["connections"] == null || call.request.queryParameters["connections"] == ""
                 ){
                 call.respond(HttpStatusCode.BadRequest, "You didn't specified all params")
             }
-            val origin = call.request.queryParameters["origin"]!!
-            val destination = call.request.queryParameters["destination"]!!
+            val origin = call.request.queryParameters["origin"]!!.uppercase()
+            val destination = call.request.queryParameters["destination"]!!.uppercase()
             val departureDate = call.request.queryParameters["departure_date"]!!
-            val bookingClass = call.request.queryParameters["booking_class"]!!
-            val connections = call.request.queryParameters["connections"]!!
-            var routes: MutableSet<RouteEntity> = mutableSetOf()
-            when (connections.toInt()){
-                1 -> {
-                    routes = dao.getRouteWithOneConnection(origin.uppercase(), destination.uppercase(), departureDate, bookingClass)
-                }
-                2 -> {
-                    routes = dao.getRouteWithOneConnection(origin.uppercase(), destination.uppercase(), departureDate, bookingClass)
-                    routes.addAll(dao.getRouteWithTwoConnection(origin.uppercase(), destination.uppercase(), departureDate, bookingClass))
-                }
-                else -> {
-                    call.respond(HttpStatusCode.BadRequest, "Sorry, I can't create routes for $connections connections")
-                }
+            val maxArrivalDate = call.request.queryParameters["max_arrival_date"]!!
+            val bookingClass = call.request.queryParameters["booking_class"]!!.replaceFirstChar {
+                if (it.isLowerCase()) it.titlecase(
+                    Locale.getDefault()
+                ) else it.toString()
+            }
+            val connections = call.request.queryParameters["connections"]!!.toInt()
+            val routes: MutableSet<RouteEntity> = dao.getRoute(origin, destination, departureDate, maxArrivalDate, bookingClass, connections)
+            val response: ArrayList<RoutesResponseSerializer> = ArrayList()
+            routes.forEach {
+                response.add(RoutesResponseSerializer(
+                    it.route, it.departureAirport, it.arrivalAirport, it.scheduledDeparture, it.flightNo, it.count, it.price
+                ))
             }
             if (routes.isEmpty()){
                 call.respond(HttpStatusCode.BadRequest, "No routes on $departureDate for $connections connections between $origin, $destination, with $bookingClass class")
             }
-            val response: ArrayList<RoutesResponseSerializer> = ArrayList()
-            routes.forEach {
-                println(it)
-                response.add(RoutesResponseSerializer(
-                    it.connections, it.departureAirports, it.arrivalAirports, it.flights, it.price
-                ))
-            }
+
             call.respond(HttpStatusCode.OK, response)
         }
 

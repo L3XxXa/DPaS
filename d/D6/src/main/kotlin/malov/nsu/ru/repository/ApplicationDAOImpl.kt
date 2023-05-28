@@ -90,82 +90,51 @@ class ApplicationDAOImpl : ApplicationDAO {
         return flights
     }
 
-    override fun getRouteWithOneConnection(
+    override fun getRoute(
         airportCodeDeparture: String,
         airportCodeArrival: String,
         departureDate: String,
-        fareCondition: String
+        maxArrivalDate: String,
+        fareCondition: String,
+        connections: Int
     ): MutableSet<RouteEntity> {
-        val fareConditionCapitalized = fareCondition.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
-        val query = """
-            select distinct fl.flight_no, fl.departure_airport, fl.arrival_airport, tad.amount
-            from flights fl
-            join total_amount_distinct tad
-              on tad.flight_no = fl.flight_no
-            where fl.departure_airport='$airportCodeDeparture' and fl.scheduled_arrival::date = to_date('$departureDate', 'YYYY-MM-DD') and fl.arrival_airport='$airportCodeArrival' and tad.fare_conditions='$fareConditionCapitalized' and tad.amount!=0
-            order by departure_airport, arrival_airport;
-        """.trimIndent()
-        val routes: MutableSet<RouteEntity> = mutableSetOf()
-        val statement = connection.createStatement()
-        val queryRes = statement.executeQuery(query)
-        while (queryRes.next()){
-            val departureAirports = ArrayList<String>()
-            val arrivalAirports = ArrayList<String>()
-            val flight = ArrayList<String>()
-            departureAirports.add(queryRes.getString("departure_airport"))
-            arrivalAirports.add(queryRes.getString("arrival_airport"))
-            flight.add(queryRes.getString("flight_no"))
-            routes.add(RouteEntity(
-                connections = 1,
-                departureAirports = departureAirports,
-                arrivalAirports = arrivalAirports,
-                price = queryRes.getString("amount")!!.toDouble().toInt(),
-                flights = flight
-            ))
-        }
-        return routes
-    }
+        val sqlQuery = """
+            WITH recursive node AS (
+                select cast(f.departure_airport as varchar(50)) as route, f.departure_airport, f.arrival_airport, f.scheduled_arrival, cast(f.flight_no as varchar(50)), 0 count, cast(tad.amount as numeric) price
+                from flights as f
+                join total_amount_distinct tad on f.flight_no = tad.flight_no and fare_conditions='$fareCondition'
+                where departure_airport = '$airportCodeDeparture'
+                  and f.scheduled_arrival::date = to_date('$departureDate', 'YYYY-MM-DD')
+                union
 
-    override fun getRouteWithTwoConnection(
-        airportCodeDeparture: String,
-        airportCodeArrival: String,
-        departureDate: String,
-        fareCondition: String
-    ): MutableSet<RouteEntity> {
-        val fareConditionCapitalized = fareCondition.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
-        val query = """
-            select distinct f.flight_no fl1, f.departure_airport departure, tad.amount f1_price, f2.departure_airport connection, f2.flight_no fl2, ta.amount f2_price, f2.departure_airport connection, f2.arrival_airport arrival
-            from flights f
-            join total_amount_distinct tad
-            on tad.flight_no=f.flight_no and tad.fare_conditions='$fareConditionCapitalized' and tad.amount!=0 and f.scheduled_arrival::date = to_date('$departureDate', 'YYYY-MM-DD')
-            left join flights f2
-            on f.arrival_airport = f2.departure_airport and f2.arrival_airport != f.departure_airport
-            join total_amount_distinct ta on f2.flight_no = ta.flight_no and ta.fare_conditions='$fareConditionCapitalized' and ta.amount!=0 and f2.scheduled_arrival::date=to_date('$departureDate', 'YYYY-MM-DD')
-            where f.departure_airport = '$airportCodeDeparture'
-            and f2.arrival_airport = '$airportCodeArrival';
+                select cast(n.route || '->' ||  f.arrival_airport as varchar(50)) as route, n.departure_airport, f.arrival_airport, f.scheduled_arrival,  cast(n.flight_no || '->' || f.flight_no as varchar(50)), n.count + 1, n.price + tad.amount
+                from node as n
+                         join flights as f on f.departure_airport = n.arrival_airport
+                         join total_amount_distinct tad on f.flight_no = tad.flight_no and fare_conditions='$fareCondition'
+                where f.arrival_airport != n.route
+                  and date(f.scheduled_arrival) <= '$maxArrivalDate'
+                  and n.scheduled_arrival < f.scheduled_departure
+                  and f.departure_airport != '$airportCodeArrival'
+                  and count < $connections
+            )
+            select * from node n
+            where n.arrival_airport = '$airportCodeArrival';
         """.trimIndent()
         val routes: MutableSet<RouteEntity> = mutableSetOf()
         val statement = connection.createStatement()
-        val queryRes = statement.executeQuery(query)
+        val queryRes = statement.executeQuery(sqlQuery)
         while (queryRes.next()){
-            val departureAirports = ArrayList<String>()
-            val arrivalAirports = ArrayList<String>()
-            val flight = ArrayList<String>()
-            departureAirports.add(queryRes.getString("departure"))
-            departureAirports.add(queryRes.getString("connection"))
-            arrivalAirports.add(queryRes.getString("connection"))
-            arrivalAirports.add(queryRes.getString("arrival"))
-            flight.add(queryRes.getString("fl1"))
-            flight.add(queryRes.getString("fl2"))
-            val price1 = queryRes.getInt("f1_price")
-            val price2 = queryRes.getInt("f2_price")
-            routes.add(RouteEntity(
-                connections = 2,
-                departureAirports = departureAirports,
-                arrivalAirports = arrivalAirports,
-                price = price1 + price2,
-                flights = flight
-            ))
+            routes.add(
+                RouteEntity(
+                queryRes.getString("route"),
+                queryRes.getString("departure_airport"),
+                queryRes.getString("arrival_airport"),
+                queryRes.getString("scheduled_arrival"),
+                queryRes.getString("flight_no"),
+                queryRes.getInt("count"),
+                queryRes.getInt("price")
+            )
+            )
         }
         return routes
     }
