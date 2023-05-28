@@ -1,4 +1,4 @@
-package malov.nsu.ru.serializators
+package malov.nsu.ru.serializators.checkin
 
 import kotlinx.serialization.Serializable
 

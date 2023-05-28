@@ -19,5 +19,5 @@ interface ApplicationDAO {
 
     fun getRouteWithTwoConnection(airportCodeDeparture: String, airportCodeArrival: String, departureDate: String, fareCondition: String): MutableSet<RouteEntity>
 
-    fun bookPerson(departureDate: String, flightNo: String, fareCondition: String, name: String, contactData: String): TicketEntity
+    fun bookPerson(departureDate: String, flightNo: String, fareCondition: String, name: String, passengerId: String, contactPhone: String, contactEmail: String): TicketEntity
 }

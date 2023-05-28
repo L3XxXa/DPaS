@@ -7,12 +7,14 @@ import io.ktor.server.routing.*
 import io.ktor.server.response.*
 import io.ktor.server.application.*
 import io.ktor.server.request.*
+import malov.nsu.ru.Validator
 import malov.nsu.ru.entity.RouteEntity
 import malov.nsu.ru.repository.ApplicationDAOImpl
-import malov.nsu.ru.serializators.BookRequestSerializer
-import malov.nsu.ru.serializators.CheckinRequestSerializer
+import malov.nsu.ru.serializators.book.BookRequestSerializer
+import malov.nsu.ru.serializators.checkin.CheckinRequestSerializer
 import malov.nsu.ru.serializators.RoutesResponseSerializer
 import malov.nsu.ru.serializators.airports.AirportResponseSerializer
+import malov.nsu.ru.serializators.book.BookResponseSerializer
 import malov.nsu.ru.serializators.cities.CitiesResponseSerializer
 import malov.nsu.ru.serializators.flights.ScheduledFlightsResponseSerializer
 
@@ -137,7 +139,12 @@ fun Application.configureRouting() {
         put("/api/v1/book"){
             try {
                 val request = call.receive<BookRequestSerializer>()
-                dao.bookPerson(request.date, request.flight_no, request.fare_condition, request.name, request.contact_data)
+                Validator.validatePhone(request.contact_phone)
+                Validator.validateEmail(request.contact_email)
+                Validator.validateId(request.passenger_id)
+                val ticketEntity = dao.bookPerson(request.date, request.flight_no, request.fare_condition, request.name, request.passenger_id, request.contact_phone, request.contact_email)
+                val bookResponseSerializer = BookResponseSerializer(ticketEntity.ticket, ticketEntity.flight, ticketEntity.aircraft, ticketEntity.date, ticketEntity.price)
+                call.respond(HttpStatusCode.OK, bookResponseSerializer)
             } catch (e: Exception){
                 call.respond(HttpStatusCode.BadRequest, "${e.message}")
             }

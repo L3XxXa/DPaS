@@ -175,7 +175,9 @@ class ApplicationDAOImpl : ApplicationDAO {
         flightNo: String,
         fareCondition: String,
         name: String,
-        contactData: String
+        passengerId: String,
+        contactPhone: String,
+        contactEmail: String
     ): TicketEntity {
         val sqlQuery = """
         select flight_id, aircraft_code from bookings.flights
@@ -206,7 +208,49 @@ class ApplicationDAOImpl : ApplicationDAO {
         while (!checkTicketNo(ticketNo, connection)){
             ticketNo = (0..9999999999999L).random().toString()
         }
-        return TicketEntity("", flightNo, aircraft, departureDate, price)
+        addTicketToTableBookings(bookRef, price, connection)
+        addTicketToTableBookingsTickets(ticketNo, bookRef, connection, passengerId, name.uppercase(), contactEmail, contactPhone)
+        addTicketToTableTicketFlights(ticketNo, flightId, fareCondition, price)
+        return TicketEntity(ticketNo, flightNo, aircraft, departureDate, price)
+    }
+
+    private fun addTicketToTableTicketFlights(ticketNo: String, flightId: String, fareCondition: String, price: Int){
+        val sqlQuery = """
+            insert into bookings.ticket_flights (ticket_no, flight_id, fare_conditions, amount) 
+            values ('$ticketNo', $flightId, '$fareCondition', $price)
+            returning *;
+        """.trimIndent()
+        val statement = connection.createStatement()
+        statement.use {
+            it.executeQuery(sqlQuery)
+        }
+        connection.commit()
+    }
+
+    private fun addTicketToTableBookings(bookRef: String, amount: Int, connection: Connection){
+        val sqlQuery = """
+            insert into bookings.bookings (book_ref, book_date, total_amount) 
+            values ('$bookRef', now(), $amount)
+            returning *;
+        """.trimIndent()
+        val statement = connection.createStatement()
+        statement.use {
+            it.executeQuery(sqlQuery)
+        }
+        connection.commit()
+    }
+
+    private fun addTicketToTableBookingsTickets(ticketNo: String, bookRef: String, connection: Connection, passengerId: String, passengerName: String, email: String, phone: String){
+        val sqlQuery = """
+            insert into bookings.tickets (ticket_no, book_ref, passenger_id, passenger_name, contact_data)
+            values ('$ticketNo', '$bookRef', '$passengerId', '$passengerName', '{"email": "$email", "phone": "$phone"}')
+            returning *;
+        """.trimIndent()
+        val statement = connection.createStatement()
+        statement.use {
+            it.executeQuery(sqlQuery)
+        }
+        connection.commit()
     }
 
     private fun checkTicketNo(ticketNo: String, connection: Connection): Boolean{
