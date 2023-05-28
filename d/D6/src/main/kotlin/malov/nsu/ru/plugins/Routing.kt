@@ -131,14 +131,13 @@ fun Application.configureRouting() {
                     it.connections, it.departureAirports, it.arrivalAirports, it.flights, it.price
                 ))
             }
-
             call.respond(HttpStatusCode.OK, response)
         }
 
         put("/api/v1/book"){
             try {
                 val request = call.receive<BookRequestSerializer>()
-                call.respond(HttpStatusCode.OK, request)
+                dao.bookPerson(request.date, request.flight_no, request.fare_condition, request.name, request.contact_data)
             } catch (e: Exception){
                 call.respond(HttpStatusCode.BadRequest, "${e.message}")
             }

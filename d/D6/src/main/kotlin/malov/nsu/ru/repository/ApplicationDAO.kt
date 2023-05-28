@@ -1,9 +1,6 @@
 package malov.nsu.ru.repository
 
-import malov.nsu.ru.entity.AirportEntity
-import malov.nsu.ru.entity.CityEntity
-import malov.nsu.ru.entity.FlightEntity
-import malov.nsu.ru.entity.RouteEntity
+import malov.nsu.ru.entity.*
 
 interface ApplicationDAO {
     fun init()
@@ -21,4 +18,6 @@ interface ApplicationDAO {
     fun getRouteWithOneConnection(airportCodeDeparture: String, airportCodeArrival: String, departureDate: String, fareCondition: String): MutableSet<RouteEntity>
 
     fun getRouteWithTwoConnection(airportCodeDeparture: String, airportCodeArrival: String, departureDate: String, fareCondition: String): MutableSet<RouteEntity>
+
+    fun bookPerson(departureDate: String, flightNo: String, fareCondition: String, name: String, contactData: String): TicketEntity
 }

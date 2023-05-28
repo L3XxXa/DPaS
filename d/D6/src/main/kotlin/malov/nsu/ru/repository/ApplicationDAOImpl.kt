@@ -1,9 +1,8 @@
 package malov.nsu.ru.repository
 
-import malov.nsu.ru.entity.AirportEntity
-import malov.nsu.ru.entity.CityEntity
-import malov.nsu.ru.entity.FlightEntity
-import malov.nsu.ru.entity.RouteEntity
+import malov.nsu.ru.exceptions.NoFlightsForBookingException
+import malov.nsu.ru.entity.*
+import malov.nsu.ru.exceptions.NoSeatsException
 import java.sql.Connection
 import java.sql.DriverManager
 import java.util.*
@@ -169,5 +168,127 @@ class ApplicationDAOImpl : ApplicationDAO {
             ))
         }
         return routes
+    }
+
+    override fun bookPerson(
+        departureDate: String,
+        flightNo: String,
+        fareCondition: String,
+        name: String,
+        contactData: String
+    ): TicketEntity {
+        val sqlQuery = """
+        select flight_id, aircraft_code from bookings.flights
+        where flight_no='$flightNo' and status='Scheduled' and
+        scheduled_departure::date = to_date('$departureDate', 'YYYY-MM-DD'); 
+        """.trimIndent()
+        val statement = connection.createStatement()
+        val queryRes = statement.executeQuery(sqlQuery)
+        val aircraftCode: String
+        val flightId: String
+        if (!queryRes.next()) {
+            throw NoFlightsForBookingException("Sorry, no scheduled flights $flightNo")
+        } else {
+            aircraftCode = queryRes.getString("aircraft_code")
+            flightId = queryRes.getString("flight_id")
+        }
+        val aircraft = findAircraftByCode(aircraftCode)
+        val seats = getSeats(fareCondition, aircraftCode, connection, flightId)
+        if (seats == 0) {
+            throw NoSeatsException("No seats on $flightNo flight for $fareCondition left")
+        }
+        val price = getPrice(flightNo, fareCondition, connection)
+        var bookRef = UUID.randomUUID().toString().replace("-", "").substring(0, 6).uppercase(Locale.getDefault())
+        while (!checkBookRef(bookRef, connection)){
+            bookRef = UUID.randomUUID().toString().replace("-", "").substring(0, 6).uppercase(Locale.getDefault())
+        }
+        var ticketNo = (0..9999999999999L).random().toString()
+        while (!checkTicketNo(ticketNo, connection)){
+            ticketNo = (0..9999999999999L).random().toString()
+        }
+        return TicketEntity("", flightNo, aircraft, departureDate, price)
+    }
+
+    private fun checkTicketNo(ticketNo: String, connection: Connection): Boolean{
+        val sqlQuery = """
+            select ticket_no from bookings.tickets where ticket_no='$ticketNo';
+        """.trimIndent()
+        val statement = connection.createStatement()
+        statement.use {
+            val resSet = it.executeQuery(sqlQuery)
+            if (resSet.next()){
+                connection.rollback()
+                connection.autoCommit = true
+                return false
+            }
+            return true
+        }
+    }
+    private fun checkBookRef(bookRef: String, connection: Connection): Boolean{
+        val sqlRequest = """
+            select book_ref
+            from bookings.bookings
+            where book_ref='$bookRef';
+        """.trimIndent()
+        val statement = connection.createStatement()
+        statement.use {
+            val resSet = it.executeQuery(sqlRequest)
+            if (resSet.next()){
+                connection.rollback()
+                connection.autoCommit = true
+                return false
+            }
+            return true
+        }
+    }
+    private fun getSeats(fareCondition: String, aircraftCode: String, connection: Connection, flightId: String): Int{
+        var seats = 0
+        val sqlQuery = """
+            select count(*)-(select count(*) from bookings.ticket_flights where fare_conditions = '${fareCondition}' and flight_id = '$flightId') left_places 
+            from bookings.seats 
+            where aircraft_code = '$aircraftCode';
+        """.trimIndent()
+        connection.autoCommit = false
+        val seatsStatement = connection.createStatement()
+        seatsStatement.use {
+            val resSet = it.executeQuery(sqlQuery)
+            while (resSet.next()) {
+                seats = resSet.getInt("left_places")
+            }
+        }
+        return seats
+    }
+
+    private fun findAircraftByCode(code: String): String {
+        val sqlQuery = """
+             select model -> 'en' as model from aircrafts_data
+             where aircraft_code='$code';
+        """.trimIndent()
+        val statement = connection.createStatement()
+        val queryRes = statement.executeQuery(sqlQuery)
+        var aircraft = ""
+        while (queryRes.next()){
+            aircraft = queryRes.getString("model")
+        }
+        return aircraft
+    }
+
+
+
+    private fun getPrice(flightNo: String, fareCondition: String, connection: Connection): Int{
+        var price = 0
+        var sqlQuery="""
+            select amount
+            from total_amount_distinct
+            where flight_no='$flightNo' and fare_conditions='$fareCondition';
+        """.trimIndent()
+        var statement = connection.createStatement()
+        statement.use {
+            val resSet = it.executeQuery(sqlQuery)
+            while (resSet.next()){
+                price = resSet.getInt("amount")
+            }
+        }
+        return price
     }
 }
