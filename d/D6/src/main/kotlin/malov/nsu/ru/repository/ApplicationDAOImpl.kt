@@ -2,11 +2,12 @@ package malov.nsu.ru.repository
 
 import malov.nsu.ru.exceptions.NoFlightsForBookingException
 import malov.nsu.ru.entity.*
+import malov.nsu.ru.exceptions.AlreadyCheckedInException
 import malov.nsu.ru.exceptions.NoSeatsException
+import malov.nsu.ru.exceptions.NoSuchTicketException
 import java.sql.Connection
 import java.sql.DriverManager
 import java.util.*
-import kotlin.collections.ArrayList
 
 
 class ApplicationDAOImpl : ApplicationDAO {
@@ -183,17 +184,117 @@ class ApplicationDAOImpl : ApplicationDAO {
         return TicketEntity(ticketNo, flightNo, aircraft, departureDate, price)
     }
 
+    override fun checkin(ticketNo: String, flightNo: String): CheckinEntity {
+        val seatNo: String
+        val boardingNo: String
+        try {
+            val flightId = getFlightIdAndCheckIfTicketWasBooked(ticketNo)
+            val fareCondition = getFareCondition(ticketNo)
+            checkIfUserAlreadyCheckedIn(flightId, ticketNo, fareCondition)
+            boardingNo = createBoardingNo(flightId)
+            seatNo = getAvailableSeat(fareCondition, flightId)
+            checkinUser(ticketNo, flightId, boardingNo, seatNo)
+        } catch (e: Exception){
+            throw e
+        }
+        return CheckinEntity(seatNo, boardingNo)
+    }
+
+    private fun checkinUser(ticketNo: String, flightId: String, boardingNo: String, seat: String){
+        val sqlQuery = """
+            insert into boarding_passes (ticket_no, flight_id, boarding_no, seat_no) values ('$ticketNo', '$flightId', '$boardingNo', '$seat') returning *;
+        """.trimIndent()
+        val statement = connection.createStatement()
+        statement.use {
+            it.executeQuery(sqlQuery)
+        }
+    }
+
+    private fun getAvailableSeat(fareCondition: String, flightId: String): String{
+        val sqlQuery = """
+            select s.seat_no seat from seats1 as s
+            left join boarding_passes bp on s.seat_no = bp.seat_no and bp.flight_id='$flightId'
+            where fare_conditions='$fareCondition'
+            and bp.seat_no IS NULL limit 1;
+        """.trimIndent()
+        val statement = connection.createStatement()
+        val queryRes = statement.executeQuery(sqlQuery)
+        var seat = ""
+        while (queryRes.next()){
+            seat = queryRes.getString("seat")
+        }
+        return seat
+    }
+
+    private fun createBoardingNo(flightId: String): String{
+        val sqlQuery = """
+            select count(*) from boarding_passes where flight_id='$flightId';
+        """.trimIndent()
+        val statement = connection.createStatement()
+        val queryRes = statement.executeQuery(sqlQuery)
+        var counts = 0
+        while (queryRes.next()){
+            counts = queryRes.getInt("count")
+        }
+        return "${counts + 1}"
+    }
+
+    private fun checkIfUserAlreadyCheckedIn(flightId: String, ticketNo: String, fareCondition: String){
+        val sqlQuery = """
+            select * from boarding_passes
+            join aircraft_flight_seats_conditions afsc on boarding_passes.flight_id = afsc.flight_id and boarding_passes.seat_no = afsc.seat_no
+            where afsc.fare_conditions='$fareCondition' and boarding_passes.ticket_no='$ticketNo'
+            and boarding_passes.flight_id='$flightId';
+        """.trimIndent()
+        val statement = connection.createStatement()
+        val queryRes = statement.executeQuery(sqlQuery)
+        if (queryRes.next()){
+            throw AlreadyCheckedInException("User with $ticketNo has already checked in")
+        }
+    }
+
+    private fun getFlightIdAndCheckIfTicketWasBooked(ticketNo: String): String{
+        val flightId: String
+        val sqlQuery = """
+            select flight_id from ticket_flights where ticket_no='$ticketNo';
+        """.trimIndent()
+        val statement = connection.createStatement()
+        val queryRes = statement.executeQuery(sqlQuery)
+        if (!queryRes.next()){
+            throw NoSuchTicketException("Sorry, not found ticket for $ticketNo")
+        }
+        else{
+            flightId = queryRes.getString("flight_id")
+        }
+        return flightId
+    }
+
+    private fun getFareCondition(ticketNo: String): String {
+        val sqlQuery = """
+            select fare_conditions from ticket_flights where ticket_no='$ticketNo';
+        """.trimIndent()
+        val statement = connection.createStatement()
+        val queryRes = statement.executeQuery(sqlQuery)
+        var fareCondition = ""
+        while (queryRes.next()){
+            fareCondition = queryRes.getString("fare_conditions")
+        }
+        return fareCondition
+    }
+
     private fun addTicketToTableTicketFlights(ticketNo: String, flightId: String, fareCondition: String, price: Int){
         val sqlQuery = """
             insert into bookings.ticket_flights (ticket_no, flight_id, fare_conditions, amount) 
             values ('$ticketNo', $flightId, '$fareCondition', $price)
             returning *;
         """.trimIndent()
+        connection.autoCommit = false
         val statement = connection.createStatement()
         statement.use {
             it.executeQuery(sqlQuery)
         }
         connection.commit()
+        connection.autoCommit = true
     }
 
     private fun addTicketToTableBookings(bookRef: String, amount: Int, connection: Connection){
@@ -202,11 +303,13 @@ class ApplicationDAOImpl : ApplicationDAO {
             values ('$bookRef', now(), $amount)
             returning *;
         """.trimIndent()
+        connection.autoCommit = false
         val statement = connection.createStatement()
         statement.use {
             it.executeQuery(sqlQuery)
         }
         connection.commit()
+        connection.autoCommit = true
     }
 
     private fun addTicketToTableBookingsTickets(ticketNo: String, bookRef: String, connection: Connection, passengerId: String, passengerName: String, email: String, phone: String){
@@ -215,11 +318,13 @@ class ApplicationDAOImpl : ApplicationDAO {
             values ('$ticketNo', '$bookRef', '$passengerId', '$passengerName', '{"email": "$email", "phone": "$phone"}')
             returning *;
         """.trimIndent()
+        connection.autoCommit = false
         val statement = connection.createStatement()
         statement.use {
             it.executeQuery(sqlQuery)
         }
         connection.commit()
+        connection.autoCommit = true
     }
 
     private fun checkTicketNo(ticketNo: String, connection: Connection): Boolean{
@@ -258,7 +363,7 @@ class ApplicationDAOImpl : ApplicationDAO {
         var seats = 0
         val sqlQuery = """
             select count(*)-(select count(*) from bookings.ticket_flights where fare_conditions = '${fareCondition}' and flight_id = '$flightId') left_places 
-            from bookings.seats 
+            from bookings.seats1
             where aircraft_code = '$aircraftCode';
         """.trimIndent()
         connection.autoCommit = false
@@ -290,12 +395,12 @@ class ApplicationDAOImpl : ApplicationDAO {
 
     private fun getPrice(flightNo: String, fareCondition: String, connection: Connection): Int{
         var price = 0
-        var sqlQuery="""
+        val sqlQuery="""
             select amount
             from total_amount_distinct
             where flight_no='$flightNo' and fare_conditions='$fareCondition';
         """.trimIndent()
-        var statement = connection.createStatement()
+        val statement = connection.createStatement()
         statement.use {
             val resSet = it.executeQuery(sqlQuery)
             while (resSet.next()){

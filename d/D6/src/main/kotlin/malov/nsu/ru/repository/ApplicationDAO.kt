@@ -18,4 +18,6 @@ interface ApplicationDAO {
     fun getRoute(airportCodeDeparture: String, airportCodeArrival: String, departureDate: String, maxArrivalDate: String, fareCondition: String, connections: Int): MutableSet<RouteEntity>
 
     fun bookPerson(departureDate: String, flightNo: String, fareCondition: String, name: String, passengerId: String, contactPhone: String, contactEmail: String): TicketEntity
+
+    fun checkin(ticketNo: String, flightNo: String): CheckinEntity
 }

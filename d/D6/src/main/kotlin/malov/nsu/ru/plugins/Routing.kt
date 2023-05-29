@@ -1,7 +1,5 @@
 package malov.nsu.ru.plugins
 
-import com.google.gson.Gson
-import com.google.gson.GsonBuilder
 import io.ktor.http.*
 import io.ktor.server.routing.*
 import io.ktor.server.response.*
@@ -15,6 +13,7 @@ import malov.nsu.ru.serializators.checkin.CheckinRequestSerializer
 import malov.nsu.ru.serializators.RoutesResponseSerializer
 import malov.nsu.ru.serializators.airports.AirportResponseSerializer
 import malov.nsu.ru.serializators.book.BookResponseSerializer
+import malov.nsu.ru.serializators.checkin.CheckinResponseSerializer
 import malov.nsu.ru.serializators.cities.CitiesResponseSerializer
 import malov.nsu.ru.serializators.flights.ScheduledFlightsResponseSerializer
 import java.util.*
@@ -22,8 +21,6 @@ import kotlin.collections.ArrayList
 
 fun Application.configureRouting() {
     val dao = ApplicationDAOImpl()
-    val gsonBuilder = GsonBuilder()
-    val gson: Gson = gsonBuilder.create()
     dao.init()
     routing {
         get("/") {
@@ -149,7 +146,8 @@ fun Application.configureRouting() {
         put("/api/v1/checkin"){
             try {
                 val request = call.receive<CheckinRequestSerializer>()
-                call.respond(HttpStatusCode.OK, request)
+                val checkin = dao.checkin(request.ticket_no, request.flight)
+                call.respond(HttpStatusCode.OK, CheckinResponseSerializer(checkin.seatNo, checkin.boardingNo))
             } catch (e: Exception){
                 call.respond(HttpStatusCode.BadRequest, "${e.message}")
             }
