@@ -140,6 +140,7 @@ fun Application.configureRouting() {
                 call.respond(HttpStatusCode.OK, bookResponseSerializer)
             } catch (e: Exception){
                 call.respond(HttpStatusCode.BadRequest, "${e.message}")
+                e.printStackTrace()
             }
         }
 
@@ -150,6 +151,7 @@ fun Application.configureRouting() {
                 call.respond(HttpStatusCode.OK, CheckinResponseSerializer(checkin.seatNo, checkin.boardingNo))
             } catch (e: Exception){
                 call.respond(HttpStatusCode.BadRequest, "${e.message}")
+                e.printStackTrace()
             }
         }
     }
