@@ -1,10 +1,7 @@
 package malov.nsu.ru.repository
 
-import malov.nsu.ru.exceptions.NoFlightsForBookingException
 import malov.nsu.ru.entity.*
-import malov.nsu.ru.exceptions.AlreadyCheckedInException
-import malov.nsu.ru.exceptions.NoSeatsException
-import malov.nsu.ru.exceptions.NoSuchTicketException
+import malov.nsu.ru.exceptions.*
 import java.sql.Connection
 import java.sql.DriverManager
 import java.util.*
@@ -104,7 +101,7 @@ class ApplicationDAOImpl : ApplicationDAO {
     ): MutableSet<RouteEntity> {
         val sqlQuery = """
             WITH recursive node AS (
-                select cast(f.departure_airport as varchar(50)) as route, f.departure_airport, f.arrival_airport, f.scheduled_arrival, cast(f.flight_no as varchar(50)), 0 count, cast(tad.amount as numeric) price
+                select cast(f.departure_airport as varchar(50)) as route, f.departure_airport, f.arrival_airport, f.scheduled_arrival, cast(f.flight_no as varchar(50)), 1 count, cast(tad.amount as numeric) price
                 from flights as f
                 join total_amount_distinct tad on f.flight_no = tad.flight_no and fare_conditions=?
                 where departure_airport = ?
@@ -138,7 +135,7 @@ class ApplicationDAOImpl : ApplicationDAO {
         while (queryRes.next()){
             routes.add(
                 RouteEntity(
-                    queryRes.getString("route"),
+                    queryRes.getString("route") + "->$airportCodeArrival",
                     queryRes.getString("departure_airport"),
                     queryRes.getString("arrival_airport"),
                     queryRes.getString("scheduled_arrival"),
@@ -183,13 +180,16 @@ class ApplicationDAOImpl : ApplicationDAO {
             throw NoSeatsException("No seats on $flightNo flight for $fareCondition left")
         }
         val price = getPrice(flightNo, fareCondition)
+        if (price==0){
+            throw CantBookOnThisFlightException("Sorry you can't book this flight.")
+        }
         var bookRef = UUID.randomUUID().toString().replace("-", "").substring(0, 6).uppercase(Locale.getDefault())
         while (!checkBookRef(bookRef, connection)){
             bookRef = UUID.randomUUID().toString().replace("-", "").substring(0, 6).uppercase(Locale.getDefault())
         }
-        var ticketNo = (0..9999999999999L).random().toString()
+        var ticketNo = (1000000000000L..9999999999999L).random().toString()
         while (!checkTicketNo(ticketNo)){
-            ticketNo = (0..9999999999999L).random().toString()
+            ticketNo = (1000000000000L..9999999999999L).random().toString()
         }
         addTicketToTableBookings(bookRef, price)
         addTicketToTableBookingsTickets(ticketNo, bookRef, passengerId, name.uppercase(), contactEmail, contactPhone)
@@ -313,15 +313,12 @@ class ApplicationDAOImpl : ApplicationDAO {
             values (?, ?, ?, ?)
             returning *;
         """.trimIndent()
-        connection.autoCommit = false
         val statement = connection.prepareStatement(sqlQuery)
         statement.setString(1, ticketNo)
         statement.setInt(2, flightId.toInt())
         statement.setString(3, fareCondition)
         statement.setInt(4, price)
         statement.executeQuery()
-        connection.commit()
-        connection.autoCommit = true
     }
 
     private fun addTicketToTableBookings(bookRef: String, amount: Int){
@@ -330,13 +327,10 @@ class ApplicationDAOImpl : ApplicationDAO {
             values (?, now(), ?)
             returning *;
         """.trimIndent()
-        connection.autoCommit = false
         val statement = connection.prepareStatement(sqlQuery)
         statement.setString(1, bookRef)
         statement.setInt(2, amount)
         statement.executeQuery()
-        connection.commit()
-        connection.autoCommit = true
     }
 
     private fun addTicketToTableBookingsTickets(ticketNo: String, bookRef: String, passengerId: String, passengerName: String, email: String, phone: String){
@@ -345,21 +339,19 @@ class ApplicationDAOImpl : ApplicationDAO {
             values (?, ?, ?, ?, '{"email": "$email", "phone": "$phone"}')
             returning *;
         """.trimIndent()
-        connection.autoCommit = false
         val statement = connection.prepareStatement(sqlQuery)
         statement.setString(1, ticketNo)
         statement.setString(2, bookRef)
         statement.setString(3, passengerId)
         statement.setString(4, passengerName)
         statement.executeQuery()
-        connection.commit()
-        connection.autoCommit = true
     }
 
     private fun checkTicketNo(ticketNo: String): Boolean{
         val sqlQuery = """
             select ticket_no from bookings.tickets where ticket_no=?;
         """.trimIndent()
+        connection.autoCommit = false
         val statement = connection.prepareStatement(sqlQuery)
         statement.setString(1, ticketNo)
         statement.use {
@@ -378,6 +370,7 @@ class ApplicationDAOImpl : ApplicationDAO {
             from bookings.bookings
             where book_ref=?;
         """.trimIndent()
+        connection.autoCommit = false
         val statement = connection.prepareStatement(sqlQuery)
         statement.setString(1, bookRef)
         statement.use {
@@ -397,7 +390,6 @@ class ApplicationDAOImpl : ApplicationDAO {
             from bookings.seats1
             where aircraft_code = ?;
         """.trimIndent()
-        connection.autoCommit = false
         val statement = connection.prepareStatement(sqlQuery)
         statement.setString(1, fareCondition)
         statement.setInt(2, flightId.toInt())
