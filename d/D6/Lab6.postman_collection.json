@@ -1,0 +1,207 @@
+{
+	"info": {
+		"_postman_id": "0efe11e1-db70-472e-ae43-afa6a7794146",
+		"name": "Lab6",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "27241175"
+	},
+	"item": [
+		{
+			"name": "airports",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "localhost:8080/api/v1/airports",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"v1",
+						"airports"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "localhost:8080/api/v1/airportsCity?city=Москва",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "localhost:8080/api/v1/airportsCity?city=Москв",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"v1",
+						"airportsCity"
+					],
+					"query": [
+						{
+							"key": "city",
+							"value": "Москв"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "localhost:8080/api/v1/cities",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "localhost:8080/api/v1/cities",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"v1",
+						"cities"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "localhost:8080/api/v1/airportOutboundSchedule?airport=VKO",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "localhost:8080/api/v1/airportOutboundSchedule?airport=OVB",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"v1",
+						"airportOutboundSchedule"
+					],
+					"query": [
+						{
+							"key": "airport",
+							"value": "OVB"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "http://localhost:8080/api/v1/routes?origin=DMe&destination=LED&departure_date=2017-08-05&max_arrival_date=2017-08-10&connections=2&booking_class=Economy",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8080/api/v1/routes?origin=OVB&destination=dme&departure_date=2017-08-05&max_arrival_date=2017-08-10&connections=5&booking_class=Economy",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"v1",
+						"routes"
+					],
+					"query": [
+						{
+							"key": "origin",
+							"value": "OVB"
+						},
+						{
+							"key": "destination",
+							"value": "dme"
+						},
+						{
+							"key": "departure_date",
+							"value": "2017-08-05"
+						},
+						{
+							"key": "max_arrival_date",
+							"value": "2017-08-10"
+						},
+						{
+							"key": "connections",
+							"value": "5"
+						},
+						{
+							"key": "booking_class",
+							"value": "Economy"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "localhost:8080/api/v1/book",
+			"request": {
+				"method": "PUT",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"date\": \"2017-09-10\",\n    \"passenger_id\": \"9999 999999\",\n    \"flight_no\": \"PG0410\",\n    \"fare_condition\": \"Comfort\",\n    \"name\": \"Zhmishenko Valera\",\n    \"contact_phone\": \"+79132281337\",\n    \"contact_email\": \"alexkkk@inbox.ru\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "localhost:8080/api/v1/book",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"v1",
+						"book"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "localhost:8080/api/v1/checkin",
+			"request": {
+				"method": "PUT",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"ticket_no\": \"5120374252282\",\n    \"flight\": \"PG0134\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "localhost:8080/api/v1/checkin",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"v1",
+						"checkin"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
